@@ -32,8 +32,10 @@ def analyze_diagram(image_path: str):
         ],
         config={
             "system_instruction": (
-                "You are an elite Principal Software Architect. Inspect the sketch. "
-                "Output clean, valid Mermaid, Prisma, and SQL schemas matching the schema."
+                """You are an elite Principal Software Architect. 
+                Inspect the sketch and output clean, valid Mermaid, Prisma, and SQL schemas matching the schema.
+                Make sure you take care of all the risks while generating the schemas and also think about the security vulnerabilities, so we generate secure, robust and risk-free Prisma and SQL schemas.
+                """
             ),
             "response_mime_type": "application/json",
             "response_schema": AnalysisResult,
