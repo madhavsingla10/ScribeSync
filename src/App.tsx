@@ -24,6 +24,7 @@ import { ResultsWorkbench } from './components/ResultsWorkbench';
 import { SAMPLE_PRESETS, SamplePreset } from './data/sampleSketches';
 import { AnalysisResult, ActiveView } from './types';
 import { motion, AnimatePresence } from 'motion/react';
+import { Client } from '@gradio/client';
 
 export default function App() {
   const [file, setFile] = useState<File | null>(null);
@@ -108,23 +109,11 @@ export default function App() {
         return;
       }
 
-      const formData = new FormData();
-      if (file) {
-        formData.append('image', file);
-      }
+      const GRADIO_URL = (import.meta as any).env?.VITE_GRADIO_URL || 'http://localhost:7860';
+      const gradioApp = await Client.connect(GRADIO_URL);
+      const gradioResponse = await gradioApp.predict("/analyze", [file]);
+      const data = (gradioResponse.data as any)[0] as AnalysisResult;
 
-      const res = await fetch('/api/analyze', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to synthesize architecture');
-      }
-
-      const data: AnalysisResult = await res.json();
-      
       // Augment with fallback stats/entities if missing from basic API response
       if (!data.entities) {
         const extractedModels = (data.prismaSchema.match(/model\s+(\w+)/g) || []).map(m => m.replace('model ', ''));
