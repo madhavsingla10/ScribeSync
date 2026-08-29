@@ -18,13 +18,27 @@ export async function synthesizeSketch(file: File): Promise<AnalysisResult> {
   const rawData = (response.data as any)[0];
   const data: AnalysisResult = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
 
-  if (!data.entities) {
-    const extractedModels = (data.prismaSchema.match(/model\s+(\w+)/g) || []).map(m => m.replace('model ', ''));
-    data.entities = extractedModels.map(name => ({
-      name,
-      fieldsCount: 5,
-      relationships: ['1:N Related']
-    }));
+  if (!data.entities && data.prismaSchema) {
+    const modelRegex = /model\s+(\w+)\s*\{([^}]+)\}/g;
+    const entities = [];
+    let match;
+
+    while ((match = modelRegex.exec(data.prismaSchema)) !== null) {
+      const name = match[1];
+      const body = match[2];
+      const fieldLines = body
+        .split('\n')
+        .map(l => l.trim())
+        .filter(l => l.length > 0 && !l.startsWith('//') && !l.startsWith('@@'));
+
+      entities.push({
+        name,
+        fieldsCount: fieldLines.length,
+        relationships: ['1:N Related']
+      });
+    }
+
+    data.entities = entities;
   }
 
   return data;

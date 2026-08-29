@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Layers, 
   Database, 
@@ -10,12 +10,12 @@ import {
   Download, 
   ArrowLeft, 
   RefreshCw, 
+  Clock, 
   Maximize2, 
   ZoomIn, 
   ZoomOut, 
   RotateCcw, 
   FileText, 
-  ShieldCheck, 
   Cpu, 
   Boxes, 
   Sparkles, 
@@ -37,6 +37,7 @@ interface ResultsWorkbenchProps {
   fileName: string | null;
   onBack: () => void;
   onNewSynthesis: () => void;
+  onOpenHistory?: () => void;
 }
 
 export function ResultsWorkbench({ 
@@ -44,7 +45,8 @@ export function ResultsWorkbench({
   preview, 
   fileName, 
   onBack, 
-  onNewSynthesis 
+  onNewSynthesis,
+  onOpenHistory
 }: ResultsWorkbenchProps) {
   const [activeTab, setActiveTab] = useState<TabType>('diagram');
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({});
@@ -122,8 +124,32 @@ ${result.endpoints.map(e => `- **[${e.method}]** \`${e.path}\`: ${e.description}
     copyToClipboard(fullMd, 'full_bundle', 'Full Architecture Markdown Copied!');
   };
 
-  // Derive stats if not provided
-  const entityCount = result.entities?.length || (result.prismaSchema.match(/model\s+\w+/g) || []).length || 4;
+  // Derive models and exact field counts directly from Prisma schema
+  const modelsList = useMemo(() => {
+    if (result.entities && result.entities.length > 0) {
+      return result.entities;
+    }
+    if (!result.prismaSchema) return [];
+    const modelRegex = /model\s+(\w+)\s*\{([^}]+)\}/g;
+    const list = [];
+    let match;
+    while ((match = modelRegex.exec(result.prismaSchema)) !== null) {
+      const name = match[1];
+      const body = match[2];
+      const fieldLines = body
+        .split('\n')
+        .map(l => l.trim())
+        .filter(l => l.length > 0 && !l.startsWith('//') && !l.startsWith('@@'));
+      list.push({
+        name,
+        fieldsCount: fieldLines.length,
+        relationships: []
+      });
+    }
+    return list;
+  }, [result.entities, result.prismaSchema]);
+
+  const entityCount = modelsList.length || (result.prismaSchema.match(/model\s+\w+/g) || []).length || 4;
   const endpointCount = result.endpoints.length;
 
   return (
@@ -168,6 +194,17 @@ ${result.endpoints.map(e => `- **[${e.method}]** \`${e.path}\`: ${e.description}
 
         {/* Global Toolbar Actions */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {onOpenHistory && (
+            <button 
+              onClick={onOpenHistory}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-800 bg-stone-900/80 hover:bg-stone-800 text-stone-300 text-xs font-mono transition"
+              title="View synthesis history"
+            >
+              <Clock className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden sm:inline">History</span>
+            </button>
+          )}
+
           <button 
             onClick={exportAllBundle}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-700/80 bg-stone-800/80 hover:bg-stone-700 text-stone-200 text-xs font-mono transition"
@@ -272,40 +309,14 @@ ${result.endpoints.map(e => `- **[${e.method}]** \`${e.path}\`: ${e.description}
             </div>
           </div>
 
-          {/* Schema Integrity Verification */}
-          <div className="bg-[#0e0e0d] border border-stone-800 rounded-xl p-4 space-y-2.5">
-            <span className="text-[11px] font-mono text-stone-300 uppercase tracking-wider flex items-center gap-1.5 font-medium">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              Integrity Checks
-            </span>
-            <div className="space-y-2 text-xs font-sans text-stone-200">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                <span>Zero circular dependency cycles</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                <span>UUID v4 Primary Keys generated</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                <span>Cascading delete foreign rules</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                <span>B-Tree indexes mapped to lookups</span>
-              </div>
-            </div>
-          </div>
-
           {/* Detected Models List */}
-          {result.entities && result.entities.length > 0 && (
+          {modelsList && modelsList.length > 0 && (
             <div className="space-y-2">
               <span className="text-[11px] font-mono text-stone-400 uppercase tracking-wider font-medium">
-                Recognized Models ({result.entities.length})
+                Recognized Models ({modelsList.length})
               </span>
               <div className="space-y-1.5">
-                {result.entities.map((ent, i) => (
+                {modelsList.map((ent, i) => (
                   <div key={i} className="flex items-center justify-between p-2.5 rounded-lg bg-[#0e0e0d] border border-stone-800 text-xs">
                     <span className="font-mono text-stone-100 font-medium">{ent.name}</span>
                     <span className="text-[10px] font-mono text-stone-400">{ent.fieldsCount} attrs</span>
@@ -649,55 +660,41 @@ ${result.endpoints.map(e => `- **[${e.method}]** \`${e.path}\`: ${e.description}
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {(result.insights || [
-                    {
-                      category: 'caching',
-                      title: 'Hot Entity Query Caching',
-                      description: 'Implement distributed Redis caching layer for read-heavy entities to minimize database connection pressure.',
-                      impact: 'High'
-                    },
-                    {
-                      category: 'indexing',
-                      title: 'Foreign Key B-Tree Indexing',
-                      description: 'Composite foreign key indexes generated automatically across all relation pivots.',
-                      impact: 'High'
-                    },
-                    {
-                      category: 'scaling',
-                      title: 'Asynchronous Task Offloading',
-                      description: 'Decouple long-running tasks such as notifications and reporting with worker queues.',
-                      impact: 'Medium'
-                    },
-                    {
-                      category: 'security',
-                      title: 'Row-Level Ownership Validation',
-                      description: 'Enforce tenant/user ownership assertions in API middleware before mutative database operations.',
-                      impact: 'High'
-                    }
-                  ]).map((item, idx) => (
-                    <div key={idx} className="bg-[#181715] border border-stone-800/80 rounded-xl p-5 flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-stone-900 border border-stone-800 text-stone-400">
-                            {item.category}
-                          </span>
-                          <span className={`text-[10px] font-mono px-2 py-0.5 rounded ${
-                            item.impact === 'High' ? 'text-amber-400 bg-amber-950/40 border border-amber-800/40' : 'text-stone-400 bg-stone-900'
-                          }`}>
-                            {item.impact} Impact
-                          </span>
+                {result.insights && result.insights.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {result.insights.map((item, idx) => (
+                      <div key={idx} className="bg-[#181715] border border-stone-800/80 rounded-xl p-5 flex flex-col justify-between shadow-lg">
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-stone-900 border border-stone-800 text-stone-400">
+                              {item.category}
+                            </span>
+                            <span className={`text-[10px] font-mono px-2 py-0.5 rounded ${
+                              item.impact === 'High' 
+                                ? 'text-amber-400 bg-amber-950/40 border border-amber-800/40' 
+                                : 'text-stone-400 bg-stone-900 border border-stone-800'
+                            }`}>
+                              {item.impact} Impact
+                            </span>
+                          </div>
+                          <h3 className="text-sm font-semibold text-white mt-2">
+                            {item.title}
+                          </h3>
+                          <p className="text-xs text-stone-400 mt-1 leading-relaxed">
+                            {item.description}
+                          </p>
                         </div>
-                        <h3 className="text-sm font-semibold text-white mt-2">
-                          {item.title}
-                        </h3>
-                        <p className="text-xs text-stone-400 mt-1 leading-relaxed">
-                          {item.description}
-                        </p>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-8 border border-stone-800/80 rounded-xl bg-[#181715] text-center space-y-2">
+                    <p className="text-sm font-medium text-stone-300">No architecture insights generated</p>
+                    <p className="text-xs text-stone-500">
+                      Upload a sketch and Gemini will derive dynamic caching, scaling, and indexing recommendations.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 

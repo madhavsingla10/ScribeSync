@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { ProcessingView } from './components/ProcessingView';
@@ -8,9 +8,20 @@ import { Header } from './components/Header';
 import { Hero } from './components/Hero';
 import { PresetsList } from './components/PresetsList';
 import { BottomDock } from './components/BottomDock';
+import { HistoryDrawer } from './components/HistoryDrawer';
+import { LoginModal } from './components/LoginModal';
 import { SAMPLE_PRESETS, SamplePreset } from './data/sampleSketches';
 import { AnalysisResult, ActiveView } from './types';
 import { synthesizeSketch } from './services/api';
+import {
+  getHistory,
+  saveToHistory,
+  deleteHistoryItem,
+  clearAllHistory,
+  getStoredUser,
+  UserProfile,
+  HistoryItem
+} from './services/history';
 
 export default function App() {
   const [file, setFile] = useState<File | null>(null);
@@ -18,7 +29,17 @@ export default function App() {
   const [urlInput, setUrlInput] = useState<string>('');
   const [view, setView] = useState<ActiveView>('landing');
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
+  const [isLoginOpen, setIsLoginOpen] = useState<boolean>(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setUser(getStoredUser());
+    setHistory(getHistory());
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -45,6 +66,8 @@ export default function App() {
     setView('processing');
     setTimeout(() => {
       setResult(preset.result);
+      saveToHistory(preset.result, null, preset.name);
+      setHistory(getHistory());
       setView('results');
     }, 3800);
   };
@@ -62,6 +85,8 @@ export default function App() {
         const matchedPreset = SAMPLE_PRESETS.find(p => p.name.toLowerCase() === urlInput.toLowerCase()) || SAMPLE_PRESETS[0];
         setTimeout(() => {
           setResult(matchedPreset.result);
+          saveToHistory(matchedPreset.result, preview, urlInput || matchedPreset.name);
+          setHistory(getHistory());
           setView('results');
         }, 4200);
         return;
@@ -70,6 +95,8 @@ export default function App() {
       if (!file) throw new Error('No file selected');
       const data = await synthesizeSketch(file);
       setResult(data);
+      saveToHistory(data, preview, file.name);
+      setHistory(getHistory());
       setView('results');
     } catch (error: any) {
       console.error('Synthesis error:', error);
@@ -84,6 +111,23 @@ export default function App() {
     setUrlInput('');
   };
 
+  const handleSelectHistoryItem = (item: HistoryItem) => {
+    setResult(item.result);
+    setPreview(item.preview);
+    setUrlInput(item.fileName);
+    setView('results');
+  };
+
+  const handleDeleteHistoryItem = (id: string) => {
+    const updated = deleteHistoryItem(id);
+    setHistory(updated);
+  };
+
+  const handleClearAllHistory = () => {
+    clearAllHistory();
+    setHistory([]);
+  };
+
   return (
     <div className="relative min-h-screen bg-[#121110] text-[#FAF8F5] font-['Instrument_Sans',sans-serif] overflow-x-hidden selection:bg-stone-700/50">
       <BackgroundGrid />
@@ -95,6 +139,23 @@ export default function App() {
         accept="image/png, image/jpeg, image/jpg" 
         className="hidden" 
       />
+
+      <HistoryDrawer
+        isOpen={isHistoryOpen}
+        history={history}
+        onClose={() => setIsHistoryOpen(false)}
+        onSelectHistory={handleSelectHistoryItem}
+        onDeleteItem={handleDeleteHistoryItem}
+        onClearAll={handleClearAllHistory}
+      />
+
+      {isLoginOpen && (
+        <LoginModal
+          user={user}
+          onClose={() => setIsLoginOpen(false)}
+          onUserChange={(newUser) => setUser(newUser)}
+        />
+      )}
 
       {view === 'processing' && (
         <ProcessingView 
@@ -110,6 +171,7 @@ export default function App() {
           preview={preview}
           fileName={file?.name || urlInput || 'Synthesized Architecture'}
           onBack={() => setView('landing')}
+          onOpenHistory={() => setIsHistoryOpen(true)}
           onNewSynthesis={() => {
             resetSelection();
             setView('landing');
@@ -120,7 +182,13 @@ export default function App() {
 
       {view === 'landing' && (
         <>
-          <Header />
+          <Header 
+            user={user}
+            historyCount={history.length}
+            onOpenHistory={() => setIsHistoryOpen(true)}
+            onOpenLogin={() => setIsLoginOpen(true)}
+          />
+
           <main className="relative z-10 pt-28 pb-48 px-4 sm:px-6 max-w-5xl mx-auto flex flex-col items-center">
             <Hero />
             <PresetsList onSelectPreset={handlePresetSelect} />

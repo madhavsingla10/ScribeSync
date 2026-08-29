@@ -6,12 +6,17 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 
 load_dotenv(override=True)
-api_key = os.getenv("GEMINI_API_KEY")
 
 class Endpoint(BaseModel):
     method: str
     path: str
     description: str
+
+class ArchInsight(BaseModel):
+    category: str
+    title: str
+    description: str
+    impact: str
 
 class AnalysisResult(BaseModel):
     title: str
@@ -20,6 +25,7 @@ class AnalysisResult(BaseModel):
     prismaSchema: str
     sqlSchema: str
     endpoints: list[Endpoint]
+    insights: list[ArchInsight]
 
 def analyze_diagram(image_input):
     if isinstance(image_input, dict):
@@ -47,7 +53,8 @@ def analyze_diagram(image_input):
     config = {
         "system_instruction": (
             "You are an elite Principal Software Architect. Inspect the sketch. "
-            "Output clean, valid Mermaid, Prisma, and SQL schemas matching the schema."
+            "Output clean, valid Mermaid, Prisma, and SQL schemas matching the schema. "
+            "Generate 3 to 6 targeted, diagram-specific architectural insights covering caching, indexing, scaling, and security."
         ),
         "response_mime_type": "application/json",
         "response_schema": AnalysisResult,
@@ -60,9 +67,9 @@ def analyze_diagram(image_input):
             config=config
         )
     except Exception:
-        # Fallback to gemini-3.5-flash if 3.7 experiences temporary high demand
+        # Fallback to gemini-2.5-flash if 3.7 experiences temporary high demand
         response = client.models.generate_content(
-            model="gemini-3.5-flash",
+            model="gemini-2.5-flash",
             contents=contents,
             config=config
         )

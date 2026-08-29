@@ -276,27 +276,6 @@ export function ProcessingView({ preview, fileName, onCancel }: ProcessingViewPr
               })}
             </div>
           </div>
-
-          {/* Live Telemetry Terminal */}
-          <div className="mt-6 bg-[#0e0d0c] border border-stone-800 rounded-xl p-3.5 font-['JetBrains_Mono'] text-xs">
-            <div className="flex items-center justify-between pb-2 border-b border-stone-800/80 mb-2">
-              <span className="text-[10px] text-stone-500 uppercase flex items-center gap-1.5">
-                <Terminal className="w-3 h-3 text-stone-400" />
-                Live Neural Stream
-              </span>
-              <span className="text-[10px] text-emerald-500 animate-pulse">● LIVE</span>
-            </div>
-
-            <div className="h-20 overflow-y-auto space-y-1.5 text-[11px] text-stone-400 no-scrollbar flex flex-col-reverse">
-              {[...logs].reverse().map((log, index) => (
-                <div key={index} className="leading-snug truncate">
-                  <span className="text-stone-600 mr-1.5">&gt;</span>
-                  <span className={index === 0 ? "text-stone-200" : "text-stone-500"}>{log}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
         </div>
 
       </main>
