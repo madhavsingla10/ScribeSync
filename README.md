@@ -26,10 +26,10 @@ ScribeSync is an AI-powered tool that transforms hand-drawn whiteboard sketches 
    GEMINI_API_KEY="your_gemini_api_key_here"
    \`\`\`
 
-3. **Run the Python Gradio Backend (Optional / Python mode):**
+3. **Run the Python Gradio Backend:**
    ```bash
    pip install -r requirements.txt
-   python backend.py
+   python backend/app.py
    ```
    The Gradio API server will run at `http://localhost:7860`.
 
