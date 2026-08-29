@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -8,8 +9,10 @@ from llm import analyze_diagram
 
 def handle_analyze(image):
     try:
-        return analyze_diagram(image)
+        data = analyze_diagram(image)
+        return json.dumps(data)
     except Exception as e:
+        print("Backend error:", e)
         raise gr.Error(str(e))
 
 with gr.Blocks(title="ScribeSync API") as demo:
@@ -17,8 +20,8 @@ with gr.Blocks(title="ScribeSync API") as demo:
     gr.Markdown("Powers the multimodal LLM synthesis engine for the ScribeSync React frontend.")
 
     with gr.Row():
-        image_in = gr.Image(type="filepath", label="Upload Sketch")
-        json_out = gr.JSON(label="Synthesized Architecture Result")
+        image_in = gr.File(label="Upload Sketch", file_types=[".png", ".jpg", ".jpeg"])
+        json_out = gr.Textbox(label="Synthesized Architecture Result", visible=False)
 
     btn = gr.Button("Synthesize Architecture", variant="primary")
 
@@ -31,5 +34,5 @@ with gr.Blocks(title="ScribeSync API") as demo:
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7860))
-    print(f"Starting Gradio API server on http://localhost:{port}")
-    demo.launch(server_name="0.0.0.0", server_port=port)
+    print(f"Starting Gradio API server on http://127.0.0.1:{port}")
+    demo.launch(server_name="0.0.0.0", server_port=port, show_error=True)
