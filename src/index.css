@@ -6,6 +6,36 @@
     background-color: #121110;
     color: #FAF8F5;
   }
+
+  /* Custom Scrollbar matching dark warm stone aesthetic */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #383531 #141311;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #141311;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #383531;
+    border-radius: 4px;
+    border: 2px solid #141311;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #524e48;
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: #141311;
+  }
 }
 
 .font-display {
